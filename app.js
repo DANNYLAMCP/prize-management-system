@@ -101,22 +101,28 @@ function getPrizesRows() {
   if (DATA.prizes.length === 0) {
     return `<tr><td colspan="5" class="no-data">請新增獎品…</td></tr>`;
   }
+  
   return DATA.prizes
     .sort((a,b)=>a.points-b.points)
-    .map(prize=>`
-      <tr>
-        <td><img src="${prize.image}" alt="${prize.name}" style="width:50px;height:50px;border-radius:4px;object-fit:cover"></td>
-        <td class="prize-name">${prize.name}</td>
-        <td class="prize-description">${prize.description||""}</td>
-        <td class="prize-points">${prize.points}</td>
-        <td>
-          <div class="prize-actions">
-            <button class="btn btn--sm btn--secondary" onclick="editPrize(${prize.id})">編輯</button>
-            <button class="btn btn--sm btn--danger" onclick="deletePrize(${prize.id})">刪除</button>
-          </div>
-        </td>
-      </tr>
-    `).join("");
+    .map(prize => {
+      // 創建安全的圖片元素
+      const imgElement = `<img src="${prize.image}" alt="${prize.name}" style="width:50px;height:50px;border-radius:4px;object-fit:cover;">`;
+      
+      return `
+        <tr>
+          <td>${imgElement}</td>
+          <td class="prize-name">${prize.name}</td>
+          <td class="prize-description">${prize.description||""}</td>
+          <td class="prize-points">${prize.points}</td>
+          <td>
+            <div class="prize-actions">
+              <button class="btn btn--sm btn--secondary" onclick="editPrize(${prize.id})">編輯</button>
+              <button class="btn btn--sm btn--danger" onclick="deletePrize(${prize.id})">刪除</button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join("");
 }
 
 function bind() {
@@ -151,12 +157,16 @@ window.deletePrize = function(id) {
   }
 };
 
-// ====== 增強版編輯Modal ======
+// ====== 修正版編輯Modal ======
 function showEditModal(prize=null) {
   const isEdit = !!prize;
-  let croppedImage = prize ? prize.image : '';
   const iColor = prize ? DATA.prizes.findIndex(p=>p.id===prize.id)%colorList.length : 0;
   const defaultImg = prize ? prize.image : getPrizeSVG("獎品",iColor);
+
+  // 使用物件來追蹤裁剪後的圖片
+  const editState = {
+    croppedImage: prize ? prize.image : defaultImg
+  };
 
   document.getElementById('modal').innerHTML = `
   <div class="modal-content modal-large">
@@ -216,14 +226,14 @@ function showEditModal(prize=null) {
   document.getElementById('modal').classList.remove('hidden');
 
   // Canvas裁剪功能
-  setupImageCropping(croppedImage);
+  setupImageCropping(editState);
   
   // 保存按鈕
   document.getElementById('saveBtn').onclick = function() {
     const n = document.getElementById('e_name').value.trim();
     const d = document.getElementById('e_desc').value.trim();
     const p = Number(document.getElementById('e_points').value)||1;
-    const img = croppedImage || document.getElementById('imgPreview').src;
+    const img = editState.croppedImage; // 使用修正後的圖片
     
     if(!n){alert("請填寫獎品名稱"); return;}
     if(!Number.isFinite(p)||p<1){alert("分數必填且>=1"); return;}
@@ -238,7 +248,7 @@ function showEditModal(prize=null) {
   };
 }
 
-function setupImageCropping(croppedImageRef) {
+function setupImageCropping(editState) {
   let loadedImg=null, startX=0, startY=0, isDown=false, cropBox={x:0,y:0,w:100,h:100};
   let scale=1;
   
@@ -247,6 +257,7 @@ function setupImageCropping(croppedImageRef) {
   const ctx=canvas.getContext('2d');
   const cropSection=document.getElementById('cropSection');
   const cropRatioSelect=document.getElementById('cropRatio');
+  const imgPreview=document.getElementById('imgPreview');
   
   function showImage(img) {
     loadedImg=img;
@@ -302,14 +313,23 @@ function setupImageCropping(croppedImageRef) {
   
   document.onmouseup=function(){ isDown=false; };
   
+  // 修正裁剪確認功能
   document.getElementById('applyCrop').onclick = function() {
     if(!loadedImg) return;
     let rx = cropBox.x/scale, ry = cropBox.y/scale, rw = cropBox.w/scale, rh = cropBox.h/scale;
     let newC=document.createElement('canvas');
     newC.width=rw; newC.height=rh;
     newC.getContext('2d').drawImage(loadedImg,rx,ry,rw,rh,0,0,rw,rh);
-    croppedImageRef = newC.toDataURL("image/png");
-    document.getElementById('imgPreview').src = croppedImageRef;
+    const croppedBase64 = newC.toDataURL("image/png");
+    
+    // 更新預覽和狀態
+    imgPreview.src = croppedBase64;
+    editState.croppedImage = croppedBase64; // 正確更新到外層狀態
+    
+    // 隱藏裁剪區域
+    cropSection.style.display = "none";
+    
+    console.log('裁剪完成，圖片已更新'); // 調試用
   };
   
   imgInput.onchange = function(e){
@@ -320,6 +340,9 @@ function setupImageCropping(croppedImageRef) {
       let img = new window.Image();
       img.onload = function(){
         showImage(img);
+        // 同時更新預覽圖片
+        imgPreview.src = ev.target.result;
+        editState.croppedImage = ev.target.result;
       };
       img.src = ev.target.result;
     };
@@ -327,7 +350,7 @@ function setupImageCropping(croppedImageRef) {
   };
 }
 
-// ====== 增強版列印Modal ======
+// ====== 列印Modal ======
 function showPrintModal() {
   document.getElementById('modal').innerHTML = `
   <div class="modal-content modal-xlarge">
