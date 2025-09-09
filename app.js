@@ -45,8 +45,6 @@ let DATA = {
   nextId: 17
 };
 
-
-// 主渲染入口
 function render() {
   const app = document.getElementById("app");
   app.innerHTML = `
@@ -102,15 +100,11 @@ function render() {
         </div>
       </div>
     </div>
-    <!-- modal區 (由JS動態加入) -->
     <div id="modal" class="modal hidden"></div>
   `;
   bind();
 }
 
-//
-// Prize Table Rows
-//
 function getPrizesRows() {
   if (DATA.prizes.length === 0) {
     return `<tr><td colspan="5" class="no-data">請新增獎品…</td></tr>`;
@@ -133,7 +127,6 @@ function getPrizesRows() {
     `).join("");
 }
 
-// ====== Event binding ======
 function bind() {
   document.getElementById("systemTitle").oninput = function(){
     DATA.title = this.value;
@@ -155,13 +148,10 @@ function bind() {
   document.getElementById("printBtn").onclick = printPoster;
 }
 
-// ====== Prize CRUD ======
-// 編輯
 window.editPrize = function(id) {
   const prize = DATA.prizes.find(p=>p.id===id);
   showEditModal(prize);
 };
-// 刪除
 window.deletePrize = function(id) {
   if(confirm("確定要刪除？")) {
     DATA.prizes = DATA.prizes.filter(p=>p.id!==id);
@@ -169,11 +159,13 @@ window.deletePrize = function(id) {
   }
 };
 
-// 新增/編輯modal
+// ====== Modal + Canvas裁剪 ======
 function showEditModal(prize=null) {
   const isEdit = !!prize;
+  let cropedImage = prize ? prize.image : '';
   const iColor = prize ? DATA.prizes.findIndex(p=>p.id===prize.id)%colorList.length : 0;
-  const defaultImg = prize ? prize.image : getPrizeSVG("獎品",iColor);
+  const tmpDefaultImg = prize ? prize.image : getPrizeSVG("獎品",iColor);
+
   document.getElementById('modal').innerHTML = `
   <div class="modal-overlay" style="display:flex">
     <div class="modal-content modal-large">
@@ -197,7 +189,19 @@ function showEditModal(prize=null) {
         <div class="form-group">
           <label>獎品圖片</label>
           <input type="file" id="e_img" accept="image/*"/>
-          <div><img id="imgPreview" src="${defaultImg}" style="width:80px;border-radius:6px;margin:7px 0"></div>
+          <div>
+            <canvas id="cropCanvas" style="display:none;border:1px solid #aaa;margin:8px 0;max-width:230px"></canvas>
+            <img id="imgPreview" src="${tmpDefaultImg}" style="width:80px;border-radius:6px;margin:7px 0">
+          </div>
+          <div style="margin-top:3px;">
+            <label>裁剪比例：</label>
+            <select id="cropRatio">
+              <option value="1">正方形 1:1</option>
+              <option value="1.33">4:3</option>
+              <option value="0.75">3:4</option>
+            </select>
+            <button type="button" class="btn btn--sm" id="applyCrop">確認裁剪</button>
+          </div>
         </div>
         <div style="text-align:right">
           <button class="btn btn--secondary" type="button" onclick="closeModal()">取消</button>
@@ -208,21 +212,100 @@ function showEditModal(prize=null) {
   </div>
   `;
   document.getElementById('modal').classList.remove('hidden');
-  // 圖片即時預覽
-  document.getElementById('e_img').onchange = function(e){
-    const file = e.target.files[0];
-    if(file){
-      const r = new FileReader();
-      r.onload = ev=>{document.getElementById('imgPreview').src=ev.target.result;}
-      r.readAsDataURL(file);
+
+  // canvas裁剪
+  let imgData=null, loadedImg=null, startX=0, startY=0, isDown=false, cropBox={x:0,y:0,w:100,h:100};
+  let ratio=1, scale=1;
+
+  const imgInput=document.getElementById('e_img');
+  const canvas=document.getElementById('cropCanvas');
+  const ctx=canvas.getContext('2d');
+  const cropRatioSelect=document.getElementById('cropRatio');
+  let showImage=(img)=>{
+    loadedImg=img;
+    // 計算比例與顯示框大小
+    scale = Math.min(230/img.width,230/img.height,1);
+    canvas.width = img.width * scale;
+    canvas.height = img.height * scale;
+    // 預設裁剪框
+    ratio = +cropRatioSelect.value;
+    let minDim = Math.min(canvas.width, canvas.height);
+    cropBox = {
+      w: Math.round(minDim*0.7),
+      h: Math.round(minDim*0.7/ratio),
+      x: Math.round((canvas.width-minDim*0.7)/2),
+      y: Math.round((canvas.height-minDim*0.7/ratio)/2)
+    };
+    redraw();
+    canvas.style.display="";
+  };
+  cropRatioSelect.onchange = () => {
+    if(loadedImg) showImage(loadedImg);
+  };
+
+  function redraw(){
+    // 畫全圖
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.drawImage(loadedImg,0,0,loadedImg.width,loadedImg.height,0,0,canvas.width,canvas.height);
+    // 畫方框
+    ctx.save();
+    ctx.strokeStyle="#1976d2";
+    ctx.lineWidth=2;
+    ctx.strokeRect(cropBox.x,cropBox.y,cropBox.w,cropBox.h);
+    ctx.restore();
+  }
+
+  // canvas拖拉裁切框
+  canvas.onmousedown=function(e){
+    let x=e.offsetX, y=e.offsetY;
+    if(x>=cropBox.x && x<=cropBox.x+cropBox.w && y>=cropBox.y && y<=cropBox.y+cropBox.h){
+      isDown=true;
+      startX=x-cropBox.x; startY=y-cropBox.y;
     }
   };
+  canvas.onmousemove=function(e){
+    if(!isDown) return;
+    let x=e.offsetX-startX, y=e.offsetY-startY;
+    x=Math.max(0,Math.min(x,canvas.width-cropBox.w));
+    y=Math.max(0,Math.min(y,canvas.height-cropBox.h));
+    cropBox.x=x; cropBox.y=y; redraw();
+  };
+  document.onmouseup=function(){ isDown=false; };
+
+  document.getElementById('applyCrop').onclick = function() {
+    if(!loadedImg) return;
+    // 計算原圖裁剪座標
+    let rx = cropBox.x/scale, ry = cropBox.y/scale, rw = cropBox.w/scale, rh = cropBox.h/scale;
+    let newC=document.createElement('canvas');
+    newC.width=rw; newC.height=rh;
+    newC.getContext('2d').drawImage(loadedImg,rx,ry,rw,rh,0,0,rw,rh);
+    let cropBase64 = newC.toDataURL("image/png");
+    document.getElementById('imgPreview').src = cropBase64;
+    cropedImage = cropBase64;
+  };
+
+  imgInput.onchange = function(e){
+    const file = e.target.files[0];
+    if(!file) return;
+    const r = new FileReader();
+    r.onload = function(ev){
+      let img=new window.Image();
+      img.onload = function(){
+        imgData=ev.target.result;
+        showImage(img);
+      };
+      img.src = ev.target.result;
+    };
+    r.readAsDataURL(file);
+  };
+
+  // Submit
   document.getElementById('editForm').onsubmit = function(e){
     e.preventDefault();
     const n = document.getElementById('e_name').value.trim();
     const d = document.getElementById('e_desc').value.trim();
     const p = Number(document.getElementById('e_points').value)||1;
-    const img = document.getElementById('imgPreview').src;
+    const img = (cropedImage ? cropedImage : document.getElementById('imgPreview').src);
     if(!n){alert("必填名稱"); return;}
     if(!Number.isFinite(p)||p<1){alert("分數必填且>=1"); return;}
     if(isEdit) {
@@ -235,12 +318,10 @@ function showEditModal(prize=null) {
   };
 }
 
-// 關閉 modal
 window.closeModal = function(){
   document.getElementById('modal').classList.add('hidden');
 };
 
-// ===== 匯出 =====
 function exportData(){
   const json = JSON.stringify({
     title: DATA.title,
@@ -253,8 +334,6 @@ function exportData(){
   a.download = `prizes_${new Date().toISOString().slice(0,10)}.json`;
   a.click();
 }
-
-// ===== 匯入 =====
 function importData(file){
   const reader = new FileReader();
   reader.onload = e=>{
@@ -278,10 +357,7 @@ function importData(file){
   };
   reader.readAsText(file);
 }
-
-// ===== 列印 =====
 function printPoster(){
-  // 產生海報
   const posterHtml = `
     <div style="padding:40px;">
       <h1 style="text-align:center;">${DATA.title}</h1>
@@ -319,7 +395,5 @@ function printPoster(){
   `);
   win.document.close();
 }
-
-// boot
 document.addEventListener("DOMContentLoaded", render);
 // ===================== END =====================
