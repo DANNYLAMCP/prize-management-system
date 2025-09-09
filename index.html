@@ -7,7 +7,9 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <!-- 主系統界面 -->
     <div class="main-system">
+        <!-- 頂部導航欄 -->
         <nav class="navbar">
             <div class="container">
                 <div class="navbar__content">
@@ -23,14 +25,19 @@
                 </div>
             </div>
         </nav>
+
+        <!-- 主內容區域 -->
         <div class="main-content">
             <div class="container">
+                <!-- 統計區域 -->
                 <div class="stats-section">
                     <div class="stat-card">
-                        <h3 id="totalPrizes">16</h3>
+                        <h3 id="totalPrizes">0</h3>
                         <p>總獎品數</p>
                     </div>
                 </div>
+
+                <!-- 操作區域 -->
                 <div class="actions-section">
                     <div class="sort-info">
                         <span class="sort-indicator">🔄 自動按分數排序（由小到大）</span>
@@ -40,32 +47,142 @@
                         <button id="clearAllBtn" class="btn btn--secondary btn--lg">🗑️ 清空所有</button>
                     </div>
                 </div>
-                <div class="table-section">
-                    <table class="prizes-table">
+
+                <!-- 獎品表格 -->
+                <div class="table-container">
+                    <table class="prize-table">
                         <thead>
                             <tr>
-                                <th width="80">圖片</th>
+                                <th>圖片</th>
                                 <th>名稱</th>
                                 <th>描述</th>
-                                <th width="100">分數</th>
-                                <th width="120">操作</th>
+                                <th>分數</th>
+                                <th>操作</th>
                             </tr>
                         </thead>
-                        <tbody id="prizesTableBody">
+                        <tbody id="prizesList">
                         </tbody>
                     </table>
                 </div>
             </div>
         </div>
     </div>
-    <div id="printArea" class="print-area hidden">
-        <div class="print-header">
-            <h1 id="printTitle">示範學校 - 獎品兌換清單</h1>
-            <p class="print-date">列印日期：<span id="printDate"></span></p>
-        </div>
-        <div id="printContent" class="print-content">
+
+    <!-- 新增/編輯獎品模態框 -->
+    <div id="prizeModal" class="modal hidden">
+        <div class="modal__backdrop"></div>
+        <div class="modal__content modal__content--large">
+            <div class="modal__header">
+                <h3 id="modalTitle">新增獎品</h3>
+                <button id="closeModal" class="modal__close">✕</button>
+            </div>
+            <div class="modal__body">
+                <form id="prizeForm">
+                    <div class="form-layout">
+                        <div class="form-left">
+                            <div class="form-group">
+                                <label for="prizeName" class="form-label">獎品名稱</label>
+                                <input type="text" id="prizeName" class="form-control" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="prizeDescription" class="form-label">描述（可選）</label>
+                                <textarea id="prizeDescription" class="form-control" rows="3" placeholder="請輸入獎品描述..."></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="prizePoints" class="form-label">所需分數</label>
+                                <input type="number" id="prizePoints" class="form-control" min="1" required>
+                            </div>
+                        </div>
+                        <div class="form-right">
+                            <div class="form-group">
+                                <label for="prizeImage" class="form-label">獎品圖片</label>
+                                <div class="image-upload-section">
+                                    <input type="file" id="prizeImage" accept="image/*" class="form-control">
+                                    <div id="imageUploadArea" class="image-upload-area hidden">
+                                        <div class="crop-controls">
+                                            <label for="aspectRatio" class="form-label">裁剪比例</label>
+                                            <select id="aspectRatio" class="form-control">
+                                                <option value="1">正方形 (1:1)</option>
+                                                <option value="1.33">橫向 (4:3)</option>
+                                                <option value="0.75">直向 (3:4)</option>
+                                            </select>
+                                            <button type="button" id="resetCrop" class="btn btn--secondary btn--sm">重設裁剪</button>
+                                        </div>
+                                        <div class="crop-container">
+                                            <canvas id="cropCanvas" class="crop-canvas"></canvas>
+                                            <div id="cropOverlay" class="crop-overlay">
+                                                <div id="cropBox" class="crop-box">
+                                                    <div class="crop-handle crop-handle--nw"></div>
+                                                    <div class="crop-handle crop-handle--ne"></div>
+                                                    <div class="crop-handle crop-handle--sw"></div>
+                                                    <div class="crop-handle crop-handle--se"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <button type="button" id="applyCrop" class="btn btn--primary">確認裁剪</button>
+                                    </div>
+                                    <div id="imagePreview" class="image-preview hidden">
+                                        <img id="previewImg" src="" alt="預覽">
+                                        <button type="button" id="editImage" class="btn btn--secondary btn--sm">重新裁剪</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal__footer">
+                <button type="button" id="cancelBtn" class="btn btn--secondary">取消</button>
+                <button type="submit" id="saveBtn" class="btn btn--primary" form="prizeForm">儲存獎品</button>
+            </div>
         </div>
     </div>
+
+    <!-- 列印模態框 -->
+    <div id="printModal" class="modal hidden">
+        <div class="modal__backdrop"></div>
+        <div class="modal__content modal__content--xlarge">
+            <div class="modal__header">
+                <h3>列印設定</h3>
+                <button id="closePrintModal" class="modal__close">✕</button>
+            </div>
+            <div class="modal__body">
+                <div class="print-options">
+                    <div class="print-options-row">
+                        <div class="form-group">
+                            <label class="form-label">列印模式</label>
+                            <div class="radio-group">
+                                <label><input type="radio" name="printMode" value="poster" checked> 海報模式 (大圖片)</label>
+                                <label><input type="radio" name="printMode" value="list"> 清單模式</label>
+                            </div>
+                        </div>
+                        <div class="form-group" id="posterOptions">
+                            <label for="imageSize" class="form-label">圖片大小</label>
+                            <select id="imageSize" class="form-control">
+                                <option value="150">標準 (150px)</option>
+                                <option value="200" selected>大 (200px)</option>
+                                <option value="250">超大 (250px)</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="posterLayout">
+                            <label for="columnsPerRow" class="form-label">每行顯示</label>
+                            <select id="columnsPerRow" class="form-control">
+                                <option value="2">2個獎品</option>
+                                <option value="3" selected>3個獎品</option>
+                                <option value="4">4個獎品</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div id="printPreview" class="print-preview"></div>
+            </div>
+            <div class="modal__footer">
+                <button type="button" id="cancelPrint" class="btn btn--secondary">取消</button>
+                <button type="button" id="executePrint" class="btn btn--primary">🖨️ 列印</button>
+            </div>
+        </div>
+    </div>
+
     <script src="app.js"></script>
 </body>
 </html>
