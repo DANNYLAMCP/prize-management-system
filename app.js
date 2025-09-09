@@ -1,5 +1,4 @@
 // ===================== Prize Management System =====================
-
 // 預設獎品資料
 const defaultPrizes = [
   { name: "鎖匙扣", points: 5 },
@@ -323,5 +322,4 @@ function printPoster(){
 
 // boot
 document.addEventListener("DOMContentLoaded", render);
-
 // ===================== END =====================
