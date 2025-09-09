@@ -1,5 +1,4 @@
 // ===================== Prize Management System =====================
-// 預設獎品資料
 const defaultPrizes = [
   { name: "鎖匙扣", points: 5 },
   { name: "小盲盒", points: 5 },
@@ -19,20 +18,17 @@ const defaultPrizes = [
   { name: "公仔", points: 200 }
 ];
 
-// SVG 顏色表
 const colorList = [
   "#42A5F5","#FB8C00","#8BC34A","#E53935","#AB47BC",
   "#7E57C2","#26A69A","#F44336","#1976D2","#FFB300",
   "#C62828","#43A047","#283593","#EC407A","#009688","#616161"
 ];
 
-// 預設SVG圖片
 function getPrizeSVG(name,i) {
   const color = colorList[i % colorList.length];
   return `data:image/svg+xml;utf8,<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><rect fill="${color}" width="100" height="100"/><text x="50" y="55" font-size="19" font-family="Arial" fill="white" text-anchor="middle">${name}</text></svg>`;
 }
 
-// 全局狀態
 let DATA = {
   title: "示範學校 - 獎品兌換清單",
   prizes: defaultPrizes.map((x,i)=>({
@@ -49,7 +45,6 @@ function render() {
   const app = document.getElementById("app");
   app.innerHTML = `
     <div class="main-system">
-      <!-- 頂部 -->
       <nav class="navbar">
         <div class="navbar__content container">
           <div class="navbar__title">
@@ -64,14 +59,12 @@ function render() {
         </div>
       </nav>
       <div class="main-content container">
-        <!-- 統計卡片 -->
         <div class="stats-section">
           <div class="stat-card">
             <h3 id="totalPrizes">${DATA.prizes.length}</h3>
             <p>總獎品數</p>
           </div>
         </div>
-        <!-- 操作 -->
         <div class="actions-section">
           <div class="sort-info">
             <span class="sort-indicator">🔄 自動按分數排序（由小到大）</span>
@@ -81,7 +74,6 @@ function render() {
             <button class="btn btn--secondary btn--lg" id="clearAllBtn">🗑️ 清空所有</button>
           </div>
         </div>
-        <!-- 表格 -->
         <div class="table-section">
           <table class="prizes-table">
             <thead>
@@ -145,7 +137,7 @@ function bind() {
     if(this.files[0]) importData(this.files[0]);
     this.value = "";
   };
-  document.getElementById("printBtn").onclick = printPoster;
+  document.getElementById("printBtn").onclick = showPrintModal;
 }
 
 window.editPrize = function(id) {
@@ -159,155 +151,83 @@ window.deletePrize = function(id) {
   }
 };
 
-// ====== Modal + Canvas裁剪 ======
+// ====== 增強版編輯Modal ======
 function showEditModal(prize=null) {
   const isEdit = !!prize;
-  let cropedImage = prize ? prize.image : '';
+  let croppedImage = prize ? prize.image : '';
   const iColor = prize ? DATA.prizes.findIndex(p=>p.id===prize.id)%colorList.length : 0;
-  const tmpDefaultImg = prize ? prize.image : getPrizeSVG("獎品",iColor);
+  const defaultImg = prize ? prize.image : getPrizeSVG("獎品",iColor);
 
   document.getElementById('modal').innerHTML = `
-  <div class="modal-overlay" style="display:flex">
-    <div class="modal-content modal-large">
-      <div class="modal-header">
-        <h3>${isEdit?'編輯獎品':'新增獎品'}</h3>
-        <button class="modal-close" onclick="closeModal()">×</button>
-      </div>
+  <div class="modal-content modal-large">
+    <div class="modal-header">
+      <h3>${isEdit?'編輯獎品':'新增獎品'}</h3>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
       <form id="editForm">
-        <div class="form-group">
-          <label>名稱*</label>
-          <input id="e_name" type="text" value="${prize?prize.name:""}" required />
-        </div>
-        <div class="form-group">
-          <label>描述</label>
-          <input id="e_desc" type="text" value="${prize?prize.description:""}" />
-        </div>
-        <div class="form-group">
-          <label>分數*</label>
-          <input id="e_points" type="number" value="${prize?prize.points:""}" required min="1" />
-        </div>
-        <div class="form-group">
-          <label>獎品圖片</label>
-          <input type="file" id="e_img" accept="image/*"/>
-          <div>
-            <canvas id="cropCanvas" style="display:none;border:1px solid #aaa;margin:8px 0;max-width:230px"></canvas>
-            <img id="imgPreview" src="${tmpDefaultImg}" style="width:80px;border-radius:6px;margin:7px 0">
+        <div class="form-layout">
+          <div class="form-left">
+            <div class="form-group">
+              <label>獎品名稱 *</label>
+              <input id="e_name" type="text" value="${prize?prize.name:""}" required placeholder="請輸入獎品名稱" />
+            </div>
+            <div class="form-group">
+              <label>描述 (可選)</label>
+              <textarea id="e_desc" placeholder="請輸入獎品描述...">${prize?prize.description:""}</textarea>
+            </div>
+            <div class="form-group">
+              <label>所需分數 *</label>
+              <input id="e_points" type="number" value="${prize?prize.points:""}" required min="1" placeholder="請輸入所需分數" />
+            </div>
           </div>
-          <div style="margin-top:3px;">
-            <label>裁剪比例：</label>
-            <select id="cropRatio">
-              <option value="1">正方形 1:1</option>
-              <option value="1.33">4:3</option>
-              <option value="0.75">3:4</option>
-            </select>
-            <button type="button" class="btn btn--sm" id="applyCrop">確認裁剪</button>
+          <div class="form-right">
+            <div class="form-group">
+              <label>獎品圖片</label>
+              <div class="image-upload-section">
+                <input type="file" id="e_img" accept="image/*" style="margin-bottom:10px"/>
+                <div class="image-preview">
+                  <img id="imgPreview" src="${defaultImg}" alt="預覽">
+                </div>
+                <div class="crop-section" id="cropSection" style="display:none">
+                  <canvas id="cropCanvas" class="crop-canvas"></canvas>
+                  <div class="crop-controls">
+                    <label>裁剪比例：</label>
+                    <select id="cropRatio">
+                      <option value="1">正方形 1:1</option>
+                      <option value="1.33">橫向 4:3</option>
+                      <option value="0.75">直向 3:4</option>
+                    </select>
+                    <button type="button" class="btn btn--sm btn--primary" id="applyCrop">確認裁剪</button>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-        <div style="text-align:right">
-          <button class="btn btn--secondary" type="button" onclick="closeModal()">取消</button>
-          <button class="btn btn--primary" type="submit">${isEdit?'儲存變更':'新增獎品'}</button>
         </div>
       </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn--secondary" type="button" onclick="closeModal()">取消</button>
+      <button class="btn btn--primary" type="button" id="saveBtn">${isEdit?'儲存獎品':'新增獎品'}</button>
     </div>
   </div>
   `;
   document.getElementById('modal').classList.remove('hidden');
 
-  // canvas裁剪
-  let imgData=null, loadedImg=null, startX=0, startY=0, isDown=false, cropBox={x:0,y:0,w:100,h:100};
-  let ratio=1, scale=1;
-
-  const imgInput=document.getElementById('e_img');
-  const canvas=document.getElementById('cropCanvas');
-  const ctx=canvas.getContext('2d');
-  const cropRatioSelect=document.getElementById('cropRatio');
-  let showImage=(img)=>{
-    loadedImg=img;
-    // 計算比例與顯示框大小
-    scale = Math.min(230/img.width,230/img.height,1);
-    canvas.width = img.width * scale;
-    canvas.height = img.height * scale;
-    // 預設裁剪框
-    ratio = +cropRatioSelect.value;
-    let minDim = Math.min(canvas.width, canvas.height);
-    cropBox = {
-      w: Math.round(minDim*0.7),
-      h: Math.round(minDim*0.7/ratio),
-      x: Math.round((canvas.width-minDim*0.7)/2),
-      y: Math.round((canvas.height-minDim*0.7/ratio)/2)
-    };
-    redraw();
-    canvas.style.display="";
-  };
-  cropRatioSelect.onchange = () => {
-    if(loadedImg) showImage(loadedImg);
-  };
-
-  function redraw(){
-    // 畫全圖
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    ctx.drawImage(loadedImg,0,0,loadedImg.width,loadedImg.height,0,0,canvas.width,canvas.height);
-    // 畫方框
-    ctx.save();
-    ctx.strokeStyle="#1976d2";
-    ctx.lineWidth=2;
-    ctx.strokeRect(cropBox.x,cropBox.y,cropBox.w,cropBox.h);
-    ctx.restore();
-  }
-
-  // canvas拖拉裁切框
-  canvas.onmousedown=function(e){
-    let x=e.offsetX, y=e.offsetY;
-    if(x>=cropBox.x && x<=cropBox.x+cropBox.w && y>=cropBox.y && y<=cropBox.y+cropBox.h){
-      isDown=true;
-      startX=x-cropBox.x; startY=y-cropBox.y;
-    }
-  };
-  canvas.onmousemove=function(e){
-    if(!isDown) return;
-    let x=e.offsetX-startX, y=e.offsetY-startY;
-    x=Math.max(0,Math.min(x,canvas.width-cropBox.w));
-    y=Math.max(0,Math.min(y,canvas.height-cropBox.h));
-    cropBox.x=x; cropBox.y=y; redraw();
-  };
-  document.onmouseup=function(){ isDown=false; };
-
-  document.getElementById('applyCrop').onclick = function() {
-    if(!loadedImg) return;
-    // 計算原圖裁剪座標
-    let rx = cropBox.x/scale, ry = cropBox.y/scale, rw = cropBox.w/scale, rh = cropBox.h/scale;
-    let newC=document.createElement('canvas');
-    newC.width=rw; newC.height=rh;
-    newC.getContext('2d').drawImage(loadedImg,rx,ry,rw,rh,0,0,rw,rh);
-    let cropBase64 = newC.toDataURL("image/png");
-    document.getElementById('imgPreview').src = cropBase64;
-    cropedImage = cropBase64;
-  };
-
-  imgInput.onchange = function(e){
-    const file = e.target.files[0];
-    if(!file) return;
-    const r = new FileReader();
-    r.onload = function(ev){
-      let img=new window.Image();
-      img.onload = function(){
-        imgData=ev.target.result;
-        showImage(img);
-      };
-      img.src = ev.target.result;
-    };
-    r.readAsDataURL(file);
-  };
-
-  // Submit
-  document.getElementById('editForm').onsubmit = function(e){
-    e.preventDefault();
+  // Canvas裁剪功能
+  setupImageCropping(croppedImage);
+  
+  // 保存按鈕
+  document.getElementById('saveBtn').onclick = function() {
     const n = document.getElementById('e_name').value.trim();
     const d = document.getElementById('e_desc').value.trim();
     const p = Number(document.getElementById('e_points').value)||1;
-    const img = (cropedImage ? cropedImage : document.getElementById('imgPreview').src);
-    if(!n){alert("必填名稱"); return;}
+    const img = croppedImage || document.getElementById('imgPreview').src;
+    
+    if(!n){alert("請填寫獎品名稱"); return;}
     if(!Number.isFinite(p)||p<1){alert("分數必填且>=1"); return;}
+    
     if(isEdit) {
       prize.name=n; prize.description=d; prize.points=p; prize.image=img;
     } else {
@@ -316,6 +236,243 @@ function showEditModal(prize=null) {
     closeModal();
     render();
   };
+}
+
+function setupImageCropping(croppedImageRef) {
+  let loadedImg=null, startX=0, startY=0, isDown=false, cropBox={x:0,y:0,w:100,h:100};
+  let scale=1;
+  
+  const imgInput=document.getElementById('e_img');
+  const canvas=document.getElementById('cropCanvas');
+  const ctx=canvas.getContext('2d');
+  const cropSection=document.getElementById('cropSection');
+  const cropRatioSelect=document.getElementById('cropRatio');
+  
+  function showImage(img) {
+    loadedImg=img;
+    scale = Math.min(300/img.width, 300/img.height, 1);
+    canvas.width = img.width * scale;
+    canvas.height = img.height * scale;
+    
+    let ratio = +cropRatioSelect.value;
+    let minDim = Math.min(canvas.width, canvas.height);
+    cropBox = {
+      w: Math.round(minDim*0.8),
+      h: Math.round(minDim*0.8/ratio),
+      x: Math.round((canvas.width-minDim*0.8)/2),
+      y: Math.round((canvas.height-minDim*0.8/ratio)/2)
+    };
+    
+    redraw();
+    cropSection.style.display = "block";
+  }
+  
+  function redraw() {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.drawImage(loadedImg,0,0,loadedImg.width,loadedImg.height,0,0,canvas.width,canvas.height);
+    
+    ctx.save();
+    ctx.strokeStyle="#1976d2";
+    ctx.lineWidth=3;
+    ctx.strokeRect(cropBox.x,cropBox.y,cropBox.w,cropBox.h);
+    ctx.fillStyle="rgba(25,118,210,0.1)";
+    ctx.fillRect(cropBox.x,cropBox.y,cropBox.w,cropBox.h);
+    ctx.restore();
+  }
+  
+  cropRatioSelect.onchange = () => {
+    if(loadedImg) showImage(loadedImg);
+  };
+  
+  canvas.onmousedown=function(e){
+    let x=e.offsetX, y=e.offsetY;
+    if(x>=cropBox.x && x<=cropBox.x+cropBox.w && y>=cropBox.y && y<=cropBox.y+cropBox.h){
+      isDown=true;
+      startX=x-cropBox.x; startY=y-cropBox.y;
+    }
+  };
+  
+  canvas.onmousemove=function(e){
+    if(!isDown) return;
+    let x=e.offsetX-startX, y=e.offsetY-startY;
+    x=Math.max(0,Math.min(x,canvas.width-cropBox.w));
+    y=Math.max(0,Math.min(y,canvas.height-cropBox.h));
+    cropBox.x=x; cropBox.y=y; redraw();
+  };
+  
+  document.onmouseup=function(){ isDown=false; };
+  
+  document.getElementById('applyCrop').onclick = function() {
+    if(!loadedImg) return;
+    let rx = cropBox.x/scale, ry = cropBox.y/scale, rw = cropBox.w/scale, rh = cropBox.h/scale;
+    let newC=document.createElement('canvas');
+    newC.width=rw; newC.height=rh;
+    newC.getContext('2d').drawImage(loadedImg,rx,ry,rw,rh,0,0,rw,rh);
+    croppedImageRef = newC.toDataURL("image/png");
+    document.getElementById('imgPreview').src = croppedImageRef;
+  };
+  
+  imgInput.onchange = function(e){
+    const file = e.target.files[0];
+    if(!file) return;
+    const r = new FileReader();
+    r.onload = function(ev){
+      let img = new window.Image();
+      img.onload = function(){
+        showImage(img);
+      };
+      img.src = ev.target.result;
+    };
+    r.readAsDataURL(file);
+  };
+}
+
+// ====== 增強版列印Modal ======
+function showPrintModal() {
+  document.getElementById('modal').innerHTML = `
+  <div class="modal-content modal-xlarge">
+    <div class="modal-header">
+      <h3>列印設定</h3>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="print-options">
+        <div class="option-group">
+          <h4>列印模式</h4>
+          <div class="radio-group">
+            <label class="radio-option">
+              <input type="radio" name="printMode" value="poster" checked>
+              <span>海報模式 (大圖片)</span>
+            </label>
+            <label class="radio-option">
+              <input type="radio" name="printMode" value="list">
+              <span>清單模式</span>
+            </label>
+          </div>
+        </div>
+        <div class="option-group">
+          <h4>圖片大小</h4>
+          <select id="imageSize">
+            <option value="150">標準 (150px)</option>
+            <option value="200" selected>大 (200px)</option>
+            <option value="250">超大 (250px)</option>
+          </select>
+        </div>
+        <div class="option-group">
+          <h4>每行顯示</h4>
+          <select id="columnsPerRow">
+            <option value="2">2個獎品</option>
+            <option value="3" selected>3個獎品</option>
+            <option value="4">4個獎品</option>
+          </select>
+        </div>
+      </div>
+      <div class="print-preview" id="printPreview">
+        ${generatePrintPreview()}
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn--secondary" onclick="closeModal()">取消</button>
+      <button class="btn btn--primary" onclick="executePrint()">🖨️ 列印</button>
+    </div>
+  </div>
+  `;
+  document.getElementById('modal').classList.remove('hidden');
+  
+  // 綁定預覽更新事件
+  ['printMode', 'imageSize', 'columnsPerRow'].forEach(name => {
+    document.addEventListener('change', function(e) {
+      if(e.target.name === 'printMode' || e.target.id === 'imageSize' || e.target.id === 'columnsPerRow') {
+        document.getElementById('printPreview').innerHTML = generatePrintPreview();
+      }
+    });
+  });
+}
+
+function generatePrintPreview() {
+  const mode = document.querySelector('input[name="printMode"]:checked')?.value || 'poster';
+  const imageSize = document.getElementById('imageSize')?.value || '200';
+  const columns = document.getElementById('columnsPerRow')?.value || '3';
+  
+  if(mode === 'poster') {
+    return `
+      <div class="poster-preview" style="grid-template-columns: repeat(${columns}, 1fr)">
+        ${DATA.prizes.sort((a,b)=>a.points-b.points).map(p=>`
+          <div class="poster-item">
+            <img src="${p.image}" style="width:${imageSize}px;height:${imageSize}px">
+            <h4>${p.name}</h4>
+            <p>${p.description||'無描述'}</p>
+            <div class="points">${p.points} 分</div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  } else {
+    return `
+      <table style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr style="background:#f0f0f0">
+            <th style="border:1px solid #ddd;padding:8px">圖片</th>
+            <th style="border:1px solid #ddd;padding:8px">名稱</th>
+            <th style="border:1px solid #ddd;padding:8px">描述</th>
+            <th style="border:1px solid #ddd;padding:8px">分數</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${DATA.prizes.sort((a,b)=>a.points-b.points).map(p=>`
+            <tr>
+              <td style="border:1px solid #ddd;padding:8px;text-align:center">
+                <img src="${p.image}" style="width:${Math.min(+imageSize,80)}px;height:${Math.min(+imageSize,80)}px;object-fit:cover">
+              </td>
+              <td style="border:1px solid #ddd;padding:8px">${p.name}</td>
+              <td style="border:1px solid #ddd;padding:8px">${p.description||'無描述'}</td>
+              <td style="border:1px solid #ddd;padding:8px;text-align:center;font-weight:bold">${p.points} 分</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+}
+
+function executePrint() {
+  const mode = document.querySelector('input[name="printMode"]:checked').value;
+  const imageSize = document.getElementById('imageSize').value;
+  const columns = document.getElementById('columnsPerRow').value;
+  
+  const printContent = document.getElementById('printPreview').innerHTML;
+  const win = window.open("","","width=900,height=1200");
+  win.document.write(`
+    <html>
+      <head>
+        <title>列印 - ${DATA.title}</title>
+        <style>
+          body { margin:0; padding:20px; font-family:'Microsoft JhengHei',Arial,sans-serif; }
+          h1 { text-align:center; margin-bottom:20px; }
+          .poster-preview { display:grid; gap:20px; grid-template-columns:repeat(${columns}, 1fr); }
+          .poster-item { page-break-inside:avoid; border:2px solid #1976d2; border-radius:8px; padding:15px; text-align:center; }
+          .poster-item img { border-radius:4px; margin-bottom:10px; }
+          .poster-item h4 { margin:5px 0; }
+          .poster-item p { margin:5px 0; color:#666; }
+          .points { font-size:18px; font-weight:bold; color:#1976d2; }
+          table { width:100%; border-collapse:collapse; }
+          th,td { border:1px solid #ddd; padding:8px; }
+          th { background:#f0f0f0; font-weight:bold; }
+          @media print {
+            .poster-item { page-break-inside:avoid; }
+          }
+        </style>
+      </head>
+      <body>
+        <h1>${DATA.title}</h1>
+        <p style="text-align:center;color:#666;margin-bottom:30px">列印日期：${new Date().toLocaleDateString('zh-TW')}</p>
+        ${printContent}
+      </body>
+      <script>setTimeout(()=>window.print(),300);<\/script>
+    </html>
+  `);
+  win.document.close();
+  closeModal();
 }
 
 window.closeModal = function(){
@@ -334,6 +491,7 @@ function exportData(){
   a.download = `prizes_${new Date().toISOString().slice(0,10)}.json`;
   a.click();
 }
+
 function importData(file){
   const reader = new FileReader();
   reader.onload = e=>{
@@ -357,43 +515,6 @@ function importData(file){
   };
   reader.readAsText(file);
 }
-function printPoster(){
-  const posterHtml = `
-    <div style="padding:40px;">
-      <h1 style="text-align:center;">${DATA.title}</h1>
-      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:40px;">
-        ${DATA.prizes.sort((a,b)=>a.points-b.points).map(
-          p=>`
-          <div style="page-break-inside:avoid;border:2px solid #eee;border-radius:12px;padding:18px;text-align:center;background:#fff;">
-            <img src="${p.image}" style="width:150px;height:150px;object-fit:cover;border-radius:8px;"><br>
-            <div style="font-size:1.3em;font-weight:bold;">${p.name}</div>
-            <div style="color:#666;height:32px;">${p.description||""}</div>
-            <div style="color:#1976D2;font-size:1.2em;margin-top:5px;">${p.points} 分</div>
-          </div>`
-        ).join("")}
-      </div>
-    </div>
-  `;
-  const win = window.open("","","width=900,height=1200");
-  win.document.write(`
-    <html>
-      <head>
-        <title>列印獎品海報</title>
-        <style>
-          body { margin:0; font-family:'Arial',sans-serif; background:#fff;}
-          h1 { margin-bottom:30px;}
-          @media print {
-            body,html {background:#fff;}
-            h1 { page-break-before: avoid; margin-top:0;}
-            div[style*="page-break-inside:avoid"] { page-break-inside:avoid;}
-          }
-        </style>
-      </head>
-      <body>${posterHtml}</body>
-      <script>setTimeout(()=>window.print(),200);<\/script>
-    </html>
-  `);
-  win.document.close();
-}
+
 document.addEventListener("DOMContentLoaded", render);
 // ===================== END =====================
