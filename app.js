@@ -17,18 +17,15 @@ const defaultPrizes = [
   { name: "公仔", points: 150 },
   { name: "公仔", points: 200 }
 ];
-
 const colorList = [
   "#42A5F5","#FB8C00","#8BC34A","#E53935","#AB47BC",
   "#7E57C2","#26A69A","#F44336","#1976D2","#FFB300",
   "#C62828","#43A047","#283593","#EC407A","#009688","#616161"
 ];
-
 function getPrizeSVG(name,i) {
   const color = colorList[i % colorList.length];
   return `data:image/svg+xml;utf8,<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><rect fill="${color}" width="100" height="100"/><text x="50" y="55" font-size="19" font-family="Arial" fill="white" text-anchor="middle">${name}</text></svg>`;
 }
-
 let DATA = {
   title: "示範學校 - 獎品兌換清單",
   prizes: defaultPrizes.map((x,i)=>({
@@ -40,7 +37,6 @@ let DATA = {
   })),
   nextId: 17
 };
-
 function render() {
   const app = document.getElementById("app");
   app.innerHTML = `
@@ -96,7 +92,6 @@ function render() {
   `;
   bind();
 }
-
 function getPrizesRows() {
   if (DATA.prizes.length === 0) {
     return `<tr><td colspan="5" class="no-data">請新增獎品…</td></tr>`;
@@ -104,13 +99,11 @@ function getPrizesRows() {
   return DATA.prizes
     .sort((a, b) => a.points - b.points)
     .map(prize => {
-      // 進階防呆
+      // 嚴格只允許 data:image 顯示圖片，其它顯示灰底
       let img = '';
-      // 嚴格只允許 data:image 顯示圖片，其它的都顯示一個灰底空方塊
       if (typeof prize.image === 'string' && prize.image.trim().startsWith('data:image/')) {
         img = `<img src="${prize.image}" alt="${prize.name||''}" style="width:50px;height:50px;border-radius:4px;object-fit:cover;background:#f6f6f6;">`;
       } else {
-        // 沒有效圖片時顯示灰底（卡片設計一致）
         img = `<div style="width:50px;height:50px;border-radius:4px;background:#f6f6f6;"></div>`;
       }
       return `
@@ -129,7 +122,6 @@ function getPrizesRows() {
       `;
     }).join("");
 }
-
 function bind() {
   document.getElementById("systemTitle").oninput = function(){
     DATA.title = this.value;
@@ -150,7 +142,6 @@ function bind() {
   };
   document.getElementById("printBtn").onclick = showPrintModal;
 }
-
 window.editPrize = function(id) {
   const prize = DATA.prizes.find(p=>p.id===id);
   showEditModal(prize);
@@ -161,18 +152,15 @@ window.deletePrize = function(id) {
     render();
   }
 };
-
 // ====== 修正版編輯Modal ======
 function showEditModal(prize=null) {
   const isEdit = !!prize;
   const iColor = prize ? DATA.prizes.findIndex(p=>p.id===prize.id)%colorList.length : 0;
   const defaultImg = prize ? prize.image : getPrizeSVG("獎品",iColor);
-
   // 使用物件來追蹤裁剪後的圖片
   const editState = {
     croppedImage: prize ? prize.image : defaultImg
   };
-
   document.getElementById('modal').innerHTML = `
   <div class="modal-content modal-large">
     <div class="modal-header">
@@ -229,20 +217,15 @@ function showEditModal(prize=null) {
   </div>
   `;
   document.getElementById('modal').classList.remove('hidden');
-
   // Canvas裁剪功能
   setupImageCropping(editState);
-  
-  // 保存按鈕
   document.getElementById('saveBtn').onclick = function() {
     const n = document.getElementById('e_name').value.trim();
     const d = document.getElementById('e_desc').value.trim();
     const p = Number(document.getElementById('e_points').value)||1;
-    const img = editState.croppedImage; // 使用修正後的圖片
-    
+    const img = editState.croppedImage;
     if(!n){alert("請填寫獎品名稱"); return;}
     if(!Number.isFinite(p)||p<1){alert("分數必填且>=1"); return;}
-    
     if(isEdit) {
       prize.name=n; prize.description=d; prize.points=p; prize.image=img;
     } else {
@@ -252,24 +235,20 @@ function showEditModal(prize=null) {
     render();
   };
 }
-
 function setupImageCropping(editState) {
   let loadedImg=null, startX=0, startY=0, isDown=false, cropBox={x:0,y:0,w:100,h:100};
   let scale=1;
-  
   const imgInput=document.getElementById('e_img');
   const canvas=document.getElementById('cropCanvas');
   const ctx=canvas.getContext('2d');
   const cropSection=document.getElementById('cropSection');
   const cropRatioSelect=document.getElementById('cropRatio');
   const imgPreview=document.getElementById('imgPreview');
-  
   function showImage(img) {
     loadedImg=img;
     scale = Math.min(300/img.width, 300/img.height, 1);
     canvas.width = img.width * scale;
     canvas.height = img.height * scale;
-    
     let ratio = +cropRatioSelect.value;
     let minDim = Math.min(canvas.width, canvas.height);
     cropBox = {
@@ -278,15 +257,12 @@ function setupImageCropping(editState) {
       x: Math.round((canvas.width-minDim*0.8)/2),
       y: Math.round((canvas.height-minDim*0.8/ratio)/2)
     };
-    
     redraw();
     cropSection.style.display = "block";
   }
-  
   function redraw() {
     ctx.clearRect(0,0,canvas.width,canvas.height);
     ctx.drawImage(loadedImg,0,0,loadedImg.width,loadedImg.height,0,0,canvas.width,canvas.height);
-    
     ctx.save();
     ctx.strokeStyle="#1976d2";
     ctx.lineWidth=3;
@@ -295,11 +271,9 @@ function setupImageCropping(editState) {
     ctx.fillRect(cropBox.x,cropBox.y,cropBox.w,cropBox.h);
     ctx.restore();
   }
-  
   cropRatioSelect.onchange = () => {
     if(loadedImg) showImage(loadedImg);
   };
-  
   canvas.onmousedown=function(e){
     let x=e.offsetX, y=e.offsetY;
     if(x>=cropBox.x && x<=cropBox.x+cropBox.w && y>=cropBox.y && y<=cropBox.y+cropBox.h){
@@ -307,7 +281,6 @@ function setupImageCropping(editState) {
       startX=x-cropBox.x; startY=y-cropBox.y;
     }
   };
-  
   canvas.onmousemove=function(e){
     if(!isDown) return;
     let x=e.offsetX-startX, y=e.offsetY-startY;
@@ -315,10 +288,7 @@ function setupImageCropping(editState) {
     y=Math.max(0,Math.min(y,canvas.height-cropBox.h));
     cropBox.x=x; cropBox.y=y; redraw();
   };
-  
   document.onmouseup=function(){ isDown=false; };
-  
-  // 修正裁剪確認功能
   document.getElementById('applyCrop').onclick = function() {
     if(!loadedImg) return;
     let rx = cropBox.x/scale, ry = cropBox.y/scale, rw = cropBox.w/scale, rh = cropBox.h/scale;
@@ -326,17 +296,10 @@ function setupImageCropping(editState) {
     newC.width=rw; newC.height=rh;
     newC.getContext('2d').drawImage(loadedImg,rx,ry,rw,rh,0,0,rw,rh);
     const croppedBase64 = newC.toDataURL("image/png");
-    
-    // 更新預覽和狀態
     imgPreview.src = croppedBase64;
-    editState.croppedImage = croppedBase64; // 正確更新到外層狀態
-    
-    // 隱藏裁剪區域
+    editState.croppedImage = croppedBase64;
     cropSection.style.display = "none";
-    
-    console.log('裁剪完成，圖片已更新'); // 調試用
   };
-  
   imgInput.onchange = function(e){
     const file = e.target.files[0];
     if(!file) return;
@@ -345,7 +308,6 @@ function setupImageCropping(editState) {
       let img = new window.Image();
       img.onload = function(){
         showImage(img);
-        // 同時更新預覽圖片
         imgPreview.src = ev.target.result;
         editState.croppedImage = ev.target.result;
       };
@@ -354,7 +316,6 @@ function setupImageCropping(editState) {
     r.readAsDataURL(file);
   };
 }
-
 // ====== 列印Modal ======
 function showPrintModal() {
   document.getElementById('modal').innerHTML = `
@@ -406,8 +367,6 @@ function showPrintModal() {
   </div>
   `;
   document.getElementById('modal').classList.remove('hidden');
-  
-  // 綁定預覽更新事件
   ['printMode', 'imageSize', 'columnsPerRow'].forEach(name => {
     document.addEventListener('change', function(e) {
       if(e.target.name === 'printMode' || e.target.id === 'imageSize' || e.target.id === 'columnsPerRow') {
@@ -416,12 +375,10 @@ function showPrintModal() {
     });
   });
 }
-
 function generatePrintPreview() {
   const mode = document.querySelector('input[name="printMode"]:checked')?.value || 'poster';
   const imageSize = document.getElementById('imageSize')?.value || '200';
   const columns = document.getElementById('columnsPerRow')?.value || '3';
-  
   if(mode === 'poster') {
     return `
       <div class="poster-preview" style="grid-template-columns: repeat(${columns}, 1fr)">
@@ -462,12 +419,10 @@ function generatePrintPreview() {
     `;
   }
 }
-
 function executePrint() {
   const mode = document.querySelector('input[name="printMode"]:checked').value;
   const imageSize = document.getElementById('imageSize').value;
   const columns = document.getElementById('columnsPerRow').value;
-  
   const printContent = document.getElementById('printPreview').innerHTML;
   const win = window.open("","","width=900,height=1200");
   win.document.write(`
@@ -502,11 +457,9 @@ function executePrint() {
   win.document.close();
   closeModal();
 }
-
 window.closeModal = function(){
   document.getElementById('modal').classList.add('hidden');
 };
-
 function exportData(){
   const json = JSON.stringify({
     title: DATA.title,
@@ -519,7 +472,6 @@ function exportData(){
   a.download = `prizes_${new Date().toISOString().slice(0,10)}.json`;
   a.click();
 }
-
 function importData(file){
   const reader = new FileReader();
   reader.onload = e=>{
@@ -534,15 +486,4 @@ function importData(file){
         points: Number(x.points)||1,
         image: x.image||getPrizeSVG(x.name||`獎品${i+1}`,i)
       }));
-      DATA.nextId=DATA.prizes.reduce((max,p)=>Math.max(max,p.id),0)+1;
-      alert("匯入成功！");
-      render();
-    }catch(err){
-      alert("匯入失敗: "+err.message);
-    }
-  };
-  reader.readAsText(file);
-}
-
-document.addEventListener("DOMContentLoaded", render);
-// ===================== END =====================
+      DATA.nextId=DATA.prizes.reduce
