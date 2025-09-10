@@ -101,29 +101,26 @@ function getPrizesRows() {
   if (DATA.prizes.length === 0) {
     return `<tr><td colspan="5" class="no-data">請新增獎品…</td></tr>`;
   }
-  
   return DATA.prizes
     .sort((a,b)=>a.points-b.points)
-    .map(prize => {
-      // 創建安全的圖片元素
-      const imgElement = `<img src="${prize.image}" alt="${prize.name}" style="width:50px;height:50px;border-radius:4px;object-fit:cover;">`;
-      
-      return `
-        <tr>
-          <td>${imgElement}</td>
-          <td class="prize-name">${prize.name}</td>
-          <td class="prize-description">${prize.description||""}</td>
-          <td class="prize-points">${prize.points}</td>
-          <td>
-            <div class="prize-actions">
-              <button class="btn btn--sm btn--secondary" onclick="editPrize(${prize.id})">編輯</button>
-              <button class="btn btn--sm btn--danger" onclick="deletePrize(${prize.id})">刪除</button>
-            </div>
-          </td>
-        </tr>
-      `;
-    }).join("");
+    .map(prize => `
+      <tr>
+        <td>
+          <img src="${prize.image}" alt="${prize.name}" style="width:50px;height:50px;border-radius:4px;object-fit:cover;">
+        </td>
+        <td class="prize-name">${prize.name}</td>
+        <td class="prize-description">${prize.description||""}</td>
+        <td class="prize-points">${prize.points}</td>
+        <td>
+          <div class="prize-actions">
+            <button class="btn btn--sm btn--secondary" onclick="editPrize(${prize.id})">編輯</button>
+            <button class="btn btn--sm btn--danger" onclick="deletePrize(${prize.id})">刪除</button>
+          </div>
+        </td>
+      </tr>
+    `).join("");
 }
+
 
 function bind() {
   document.getElementById("systemTitle").oninput = function(){
