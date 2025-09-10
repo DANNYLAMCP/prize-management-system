@@ -17,14 +17,17 @@ const defaultPrizes = [
   { name: "公仔", points: 150 },
   { name: "公仔", points: 200 }
 ];
+
 const colorList = [
   "#42A5F5","#FB8C00","#8BC34A","#E53935","#AB47BC","#7E57C2","#26A69A","#F44336","#1976D2","#FFB300",
   "#C62828","#43A047","#283593","#EC407A","#009688","#616161"
 ];
+
 function getPrizeSVG(name,i) {
   const color = colorList[i % colorList.length];
-  return `data:image/svg+xml;utf8,<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><rect fill="${color}" width="100" height="100"/><text x="50" y="55" font-size="19" font-family="Arial" fill="white" text-anchor="middle">${name}</text></svg>`;
+  return `data:image/svg+xml;utf8,<svg height="100" width="100" xmlns="http://www.w3.org/2000/svg"><rect fill="${color}" height="100" width="100"></rect><text fill="white" font-family="Arial" font-size="19" text-anchor="middle" x="50" y="55">${name}</text></svg>`;
 }
+
 let DATA = {
   title: "示範學校 - 獎品兌換清單",
   prizes: defaultPrizes.map((x,i)=>({
@@ -36,6 +39,7 @@ let DATA = {
   })),
   nextId: 17
 };
+
 function render() {
   const app = document.getElementById("app");
   app.innerHTML = `
@@ -43,13 +47,13 @@ function render() {
       <nav class="navbar">
         <div class="navbar__content container">
           <div class="navbar__title">
-            <input type="text" class="system-title-input" id="systemTitle" value="${DATA.title}" />
+            <input class="system-title-input" id="systemTitle" type="text" value="${DATA.title}"/>
           </div>
           <div class="navbar__actions">
-            <button id="exportBtn" class="btn btn--secondary">📤 匯出資料</button>
-            <button id="importBtn" class="btn btn--secondary">📥 匯入資料</button>
-            <input id="importFile" style="display:none" type="file" accept=".json"/>
-            <button id="printBtn" class="btn btn--primary">🖨️ 列印</button>
+            <button class="btn btn--secondary" id="exportBtn">📤 匯出資料</button>
+            <button class="btn btn--secondary" id="importBtn">📥 匯入資料</button>
+            <input accept=".json" id="importFile" style="display:none" type="file"/>
+            <button class="btn btn--primary" id="printBtn">🖨️ 列印</button>
           </div>
         </div>
       </nav>
@@ -57,7 +61,7 @@ function render() {
         <div class="stats-section">
           <div class="stat-card">
             <h3 id="totalPrizes">${DATA.prizes.length}</h3>
-            <p>總獎品數</p>
+            總獎品數
           </div>
         </div>
         <div class="actions-section">
@@ -87,26 +91,27 @@ function render() {
         </div>
       </div>
     </div>
-    <div id="modal" class="modal hidden"></div>
+    <div class="modal hidden" id="modal"></div>
   `;
   bind();
 }
+
 function getPrizesRows() {
   if (DATA.prizes.length === 0) {
-    return `<tr><td colspan="5" class="no-data">請新增獎品…</td></tr>`;
+    return `<tr><td class="no-data" colspan="5">請新增獎品…</td></tr>`;
   }
   return DATA.prizes
     .sort((a, b) => a.points - b.points)
     .map(prize => {
       let img = '';
       if (typeof prize.image === 'string' && prize.image.trim().startsWith('data:image/')) {
-        img = `<img src="${prize.image}" alt="${prize.name||''}" style="width:50px;height:50px;border-radius:4px;object-fit:cover;background:#f6f6f6;">`;
+        img = `<td><img src="${prize.image}" alt="${prize.name||''}" style="width:50px;height:50px;border-radius:4px;object-fit:cover;background:#f6f6f6;"/></td>`;
       } else {
-        img = `<div style="width:50px;height:50px;border-radius:4px;background:#f6f6f6;"></div>`;
+        img = `<td><div style="width:50px;height:50px;border-radius:4px;background:#f6f6f6;"></div></td>`;
       }
       return `
       <tr>
-        <td>${img}</td>
+        ${img}
         <td class="prize-name">${prize.name||''}</td>
         <td class="prize-description">${prize.description||""}</td>
         <td class="prize-points">${prize.points||''}</td>
@@ -120,6 +125,7 @@ function getPrizesRows() {
       `;
     }).join("");
 }
+
 function bind() {
   document.getElementById("systemTitle").oninput = function(){
     DATA.title = this.value;
@@ -140,15 +146,18 @@ function bind() {
   };
   document.getElementById("printBtn").onclick = ()=>alert('列印功能僅推薦電腦瀏覽器使用。');
 }
+
 window.editPrize = function(id) {
   alert("編輯功能請見完整版demo");
 };
+
 window.deletePrize = function(id) {
   if(confirm("確定要刪除？")) {
     DATA.prizes = DATA.prizes.filter(p=>p.id!==id);
     render();
   }
 };
+
 function exportData(){
   const json = JSON.stringify({
     title: DATA.title,
@@ -161,6 +170,7 @@ function exportData(){
   a.download = `prizes_${new Date().toISOString().slice(0,10)}.json`;
   a.click();
 }
+
 function importData(file){
   const reader = new FileReader();
   reader.onload = e=>{
@@ -184,5 +194,6 @@ function importData(file){
   };
   reader.readAsText(file);
 }
+
 document.addEventListener("DOMContentLoaded", render);
 // ===================== END =====================
