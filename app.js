@@ -41,7 +41,6 @@ function loadFromLocal() {
     const saved = localStorage.getItem('prizeManagementData');
     if (saved) {
       const parsedData = JSON.parse(saved);
-      // 驗證數據格式
       if (parsedData.title && Array.isArray(parsedData.prizes)) {
         DATA.title = parsedData.title;
         DATA.prizes = parsedData.prizes.map((x,i)=>({
@@ -61,7 +60,6 @@ function loadFromLocal() {
   return false;
 }
 
-// 初始化數據（優先從本地載入）
 let DATA = {
   title: "示範學校 - 獎品兌換清單",
   prizes: defaultPrizes.map((x,i)=>({
@@ -74,9 +72,7 @@ let DATA = {
   nextId: 17
 };
 
-// 嘗試從本地儲存載入
 if (!loadFromLocal()) {
-  // 如果沒有本地數據，使用預設數據並保存
   saveToLocal();
 }
 
@@ -143,17 +139,19 @@ function getPrizesRows() {
   return DATA.prizes
     .sort((a,b)=>a.points-b.points)
     .map(prize => {
-      // 完全防呆的圖片渲染 - 絕對不會顯示HTML代碼
-      let imgHtml = '';
-      if (prize.image && typeof prize.image === 'string' && prize.image.startsWith('data:image/')) {
-        imgHtml = `<img src="${prize.image}" alt="" style="width:50px;height:50px;border-radius:4px;object-fit:cover;background:#f6f6f6;">`;
+      // 徹底解決圖片顯示問題
+      let imgCell = '';
+      if (prize.image && typeof prize.image === 'string' && prize.image.trim().startsWith('data:image/')) {
+        // 有效的base64圖片
+        imgCell = `<img src="${prize.image}" style="width:50px;height:50px;border-radius:4px;object-fit:cover;">`;
       } else {
-        imgHtml = `<div style="width:50px;height:50px;border-radius:4px;background:#f6f6f6;display:flex;align-items:center;justify-content:center;color:#999;font-size:12px;">無圖</div>`;
+        // 無圖片時顯示空的div
+        imgCell = `<div style="width:50px;height:50px;border-radius:4px;background:#f6f6f6;border:1px solid #e0e0e0;"></div>`;
       }
       
       return `
         <tr>
-          <td>${imgHtml}</td>
+          <td>${imgCell}</td>
           <td class="prize-name">${prize.name||''}</td>
           <td class="prize-description">${prize.description||""}</td>
           <td class="prize-points">${prize.points||''}</td>
@@ -172,13 +170,13 @@ function bind() {
   document.getElementById("systemTitle").oninput = function(){
     DATA.title = this.value;
     document.title = this.value;
-    saveToLocal(); // 自動保存
+    saveToLocal();
   };
   document.getElementById("addPrizeBtn").onclick = ()=>showEditModal();
   document.getElementById("clearAllBtn").onclick = ()=>{
     if(confirm("確定清空所有獎品？此操作無法復原！")) {
       DATA.prizes = [];
-      saveToLocal(); // 自動保存
+      saveToLocal();
       render();
     }
   };
@@ -199,12 +197,11 @@ window.editPrize = function(id) {
 window.deletePrize = function(id) {
   if(confirm("確定要刪除？")) {
     DATA.prizes = DATA.prizes.filter(p=>p.id!==id);
-    saveToLocal(); // 自動保存
+    saveToLocal();
     render();
   }
 };
 
-// ====== 完整版編輯Modal ======
 function showEditModal(prize=null) {
   const isEdit = !!prize;
   const iColor = prize ? DATA.prizes.findIndex(p=>p.id===prize.id)%colorList.length : 0;
@@ -266,10 +263,8 @@ function showEditModal(prize=null) {
   
   document.getElementById('modal').classList.remove('hidden');
   
-  // 圖片上傳和裁剪邏輯
   setupImageCropping();
   
-  // 保存按鈕
   document.getElementById('saveBtn').onclick = function() {
     const n = document.getElementById('e_name').value.trim();
     const d = document.getElementById('e_desc').value.trim();
@@ -285,7 +280,7 @@ function showEditModal(prize=null) {
       DATA.prizes.push({id:DATA.nextId++,name:n,description:d,points:p,image:img});
     }
     
-    saveToLocal(); // 自動保存
+    saveToLocal();
     closeModal();
     render();
   };
@@ -386,9 +381,152 @@ function showEditModal(prize=null) {
   }
 }
 
-// ====== 列印Modal ======
+// ====== 完整列印Modal ======
 function showPrintModal() {
-  alert('列印功能開發中，目前可使用瀏覽器的列印功能 (Ctrl+P)');
+  document.getElementById('modal').innerHTML = `
+  <div class="modal-content modal-xlarge" style="background:white;border-radius:12px;max-width:1000px;width:95%;margin:30px auto;padding:0;box-shadow:0 15px 35px rgba(0,0,0,0.3);">
+    <div class="modal-header" style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;padding:20px 30px;border-radius:12px 12px 0 0;display:flex;justify-content:space-between;align-items:center;">
+      <h3 style="margin:0;font-size:20px;">列印設定</h3>
+      <button onclick="closeModal()" style="background:rgba(255,255,255,0.2);border:none;border-radius:50%;width:32px;height:32px;color:white;cursor:pointer;font-size:18px;">×</button>
+    </div>
+    <div class="modal-body" style="padding:30px;">
+      <div class="print-options" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;margin-bottom:20px;">
+        <div class="option-group" style="background:white;padding:15px;border-radius:8px;border:1px solid #dee2e6;">
+          <h4 style="margin-bottom:10px;color:#333;font-size:14px;">列印模式</h4>
+          <div class="radio-group" style="display:flex;flex-direction:column;gap:8px;">
+            <label class="radio-option" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+              <input type="radio" name="printMode" value="poster" checked style="margin:0;">
+              <span>海報模式 (大圖片)</span>
+            </label>
+            <label class="radio-option" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+              <input type="radio" name="printMode" value="list" style="margin:0;">
+              <span>清單模式</span>
+            </label>
+          </div>
+        </div>
+        <div class="option-group" style="background:white;padding:15px;border-radius:8px;border:1px solid #dee2e6;">
+          <h4 style="margin-bottom:10px;color:#333;font-size:14px;">圖片大小</h4>
+          <select id="imageSize" style="width:100%;padding:8px;border-radius:4px;border:1px solid #dee2e6;">
+            <option value="150">標準 (150px)</option>
+            <option value="200" selected>大 (200px)</option>
+            <option value="250">超大 (250px)</option>
+          </select>
+        </div>
+        <div class="option-group" style="background:white;padding:15px;border-radius:8px;border:1px solid #dee2e6;">
+          <h4 style="margin-bottom:10px;color:#333;font-size:14px;">每行顯示</h4>
+          <select id="columnsPerRow" style="width:100%;padding:8px;border-radius:4px;border:1px solid #dee2e6;">
+            <option value="2">2個獎品</option>
+            <option value="3" selected>3個獎品</option>
+            <option value="4">4個獎品</option>
+          </select>
+        </div>
+      </div>
+      <div class="print-preview" id="printPreview" style="background:#f8f9fa;border-radius:8px;padding:20px;max-height:400px;overflow-y:auto;border:1px solid #dee2e6;">
+        ${generatePrintPreview()}
+      </div>
+    </div>
+    <div class="modal-footer" style="padding:20px 30px;background:#f8f9fa;border-radius:0 0 12px 12px;text-align:right;">
+      <button onclick="closeModal()" style="padding:10px 20px;margin-right:10px;background:#6c757d;color:white;border:none;border-radius:7px;cursor:pointer;">取消</button>
+      <button onclick="executePrint()" style="padding:10px 20px;background:#1976d2;color:white;border:none;border-radius:7px;cursor:pointer;">🖨️ 列印</button>
+    </div>
+  </div>
+  `;
+  document.getElementById('modal').classList.remove('hidden');
+  
+  // 綁定預覽更新事件
+  ['printMode', 'imageSize', 'columnsPerRow'].forEach(name => {
+    document.addEventListener('change', function(e) {
+      if(e.target.name === 'printMode' || e.target.id === 'imageSize' || e.target.id === 'columnsPerRow') {
+        document.getElementById('printPreview').innerHTML = generatePrintPreview();
+      }
+    });
+  });
+}
+
+function generatePrintPreview() {
+  const mode = document.querySelector('input[name="printMode"]:checked')?.value || 'poster';
+  const imageSize = document.getElementById('imageSize')?.value || '200';
+  const columns = document.getElementById('columnsPerRow')?.value || '3';
+  
+  if(mode === 'poster') {
+    return `
+      <div class="poster-preview" style="display:grid;gap:20px;grid-template-columns:repeat(${columns}, 1fr);">
+        ${DATA.prizes.sort((a,b)=>a.points-b.points).map(p=>`
+          <div class="poster-item" style="background:white;border:2px solid #1976d2;border-radius:12px;padding:15px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+            <img src="${p.image}" style="width:${imageSize}px;height:${imageSize}px;object-fit:cover;border-radius:8px;margin-bottom:10px;">
+            <h4 style="font-size:16px;margin-bottom:5px;color:#333;">${p.name}</h4>
+            <p style="font-size:12px;color:#666;margin-bottom:8px;min-height:32px;">${p.description||'無描述'}</p>
+            <div class="points" style="font-size:18px;font-weight:bold;color:#1976d2;">${p.points} 分</div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  } else {
+    return `
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr style="background:#f0f0f0;">
+            <th style="border:1px solid #ddd;padding:8px;">圖片</th>
+            <th style="border:1px solid #ddd;padding:8px;">名稱</th>
+            <th style="border:1px solid #ddd;padding:8px;">描述</th>
+            <th style="border:1px solid #ddd;padding:8px;">分數</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${DATA.prizes.sort((a,b)=>a.points-b.points).map(p=>`
+            <tr>
+              <td style="border:1px solid #ddd;padding:8px;text-align:center;">
+                <img src="${p.image}" style="width:${Math.min(+imageSize,80)}px;height:${Math.min(+imageSize,80)}px;object-fit:cover;">
+              </td>
+              <td style="border:1px solid #ddd;padding:8px;">${p.name}</td>
+              <td style="border:1px solid #ddd;padding:8px;">${p.description||'無描述'}</td>
+              <td style="border:1px solid #ddd;padding:8px;text-align:center;font-weight:bold;">${p.points} 分</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+}
+
+function executePrint() {
+  const mode = document.querySelector('input[name="printMode"]:checked').value;
+  const imageSize = document.getElementById('imageSize').value;
+  const columns = document.getElementById('columnsPerRow').value;
+  
+  const printContent = document.getElementById('printPreview').innerHTML;
+  const win = window.open("","","width=900,height=1200");
+  win.document.write(`
+    <html>
+      <head>
+        <title>列印 - ${DATA.title}</title>
+        <style>
+          body { margin:0; padding:20px; font-family:'Microsoft JhengHei',Arial,sans-serif; }
+          h1 { text-align:center; margin-bottom:20px; }
+          .poster-preview { display:grid; gap:20px; grid-template-columns:repeat(${columns}, 1fr); }
+          .poster-item { page-break-inside:avoid; border:2px solid #1976d2; border-radius:8px; padding:15px; text-align:center; }
+          .poster-item img { border-radius:4px; margin-bottom:10px; }
+          .poster-item h4 { margin:5px 0; }
+          .poster-item p { margin:5px 0; color:#666; }
+          .points { font-size:18px; font-weight:bold; color:#1976d2; }
+          table { width:100%; border-collapse:collapse; }
+          th,td { border:1px solid #ddd; padding:8px; }
+          th { background:#f0f0f0; font-weight:bold; }
+          @media print {
+            .poster-item { page-break-inside:avoid; }
+          }
+        </style>
+      </head>
+      <body>
+        <h1>${DATA.title}</h1>
+        <p style="text-align:center;color:#666;margin-bottom:30px">列印日期：${new Date().toLocaleDateString('zh-TW')}</p>
+        ${printContent}
+      </body>
+      <script>setTimeout(()=>window.print(),300);<\/script>
+    </html>
+  `);
+  win.document.close();
+  closeModal();
 }
 
 window.closeModal = function(){
@@ -423,7 +561,7 @@ function importData(file){
         image: x.image||getPrizeSVG(x.name||`獎品${i+1}`,i)
       }));
       DATA.nextId=DATA.prizes.reduce((max,p)=>Math.max(max,p.id),0)+1;
-      saveToLocal(); // 自動保存
+      saveToLocal();
       alert("匯入成功！");
       render();
     }catch(err){
