@@ -98,7 +98,6 @@ function getPrizesRows() {
   return DATA.prizes
     .sort((a, b) => a.points - b.points)
     .map(prize => {
-      // 嚴格只允許 data:image 顯示圖片，其餘show灰底
       let img = '';
       if (typeof prize.image === 'string' && prize.image.trim().startsWith('data:image/')) {
         img = `<img src="${prize.image}" alt="${prize.name||''}" style="width:50px;height:50px;border-radius:4px;object-fit:cover;background:#f6f6f6;">`;
@@ -126,7 +125,7 @@ function bind() {
     DATA.title = this.value;
     document.title = this.value;
   };
-  document.getElementById("addPrizeBtn").onclick = ()=>showEditModal();
+  document.getElementById("addPrizeBtn").onclick = ()=>alert("新增/編輯功能示範請見完整版demo");
   document.getElementById("clearAllBtn").onclick = ()=>{
     if(confirm("確定清空所有獎品？")) {
       DATA.prizes = [];
@@ -139,11 +138,10 @@ function bind() {
     if(this.files[0]) importData(this.files[0]);
     this.value = "";
   };
-  document.getElementById("printBtn").onclick = ()=>alert('列印功能僅推薦桌電瀏覽器使用。');
+  document.getElementById("printBtn").onclick = ()=>alert('列印功能僅推薦電腦瀏覽器使用。');
 }
 window.editPrize = function(id) {
-  const prize = DATA.prizes.find(p=>p.id===id);
-  showEditModal(prize);
+  alert("編輯功能請見完整版demo");
 };
 window.deletePrize = function(id) {
   if(confirm("確定要刪除？")) {
@@ -151,9 +149,6 @@ window.deletePrize = function(id) {
     render();
   }
 };
-function showEditModal(prize=null) {
-  alert('此簡化demo不含完整modal示範，如需CRUD/裁圖等完全版請用上面完整工程版本！');
-}
 function exportData(){
   const json = JSON.stringify({
     title: DATA.title,
