@@ -102,13 +102,33 @@ function getPrizesRows() {
     return `<tr><td colspan="5" class="no-data">請新增獎品…</td></tr>`;
   }
   return DATA.prizes
-    .sort((a,b)=>a.points-b.points)
+    .sort((a, b) => a.points - b.points)
     .map(prize => {
-      // 僅當 image 有合理base64或svg才顯示，否則顯示空白圖
-      const imgSrc = (prize.image && prize.image.startsWith('data:image/')) ? prize.image : '';
-      // 或用 '/empty.png' 替代，這樣在沒圖片時
-
-
+      // 進階防呆
+      let img = '';
+      // 嚴格只允許 data:image 顯示圖片，其它的都顯示一個灰底空方塊
+      if (typeof prize.image === 'string' && prize.image.trim().startsWith('data:image/')) {
+        img = `<img src="${prize.image}" alt="${prize.name||''}" style="width:50px;height:50px;border-radius:4px;object-fit:cover;background:#f6f6f6;">`;
+      } else {
+        // 沒有效圖片時顯示灰底（卡片設計一致）
+        img = `<div style="width:50px;height:50px;border-radius:4px;background:#f6f6f6;"></div>`;
+      }
+      return `
+      <tr>
+        <td>${img}</td>
+        <td class="prize-name">${prize.name||''}</td>
+        <td class="prize-description">${prize.description||""}</td>
+        <td class="prize-points">${prize.points||''}</td>
+        <td>
+          <div class="prize-actions">
+            <button class="btn btn--sm btn--secondary" onclick="editPrize(${prize.id})">編輯</button>
+            <button class="btn btn--sm btn--danger" onclick="deletePrize(${prize.id})">刪除</button>
+          </div>
+        </td>
+      </tr>
+      `;
+    }).join("");
+}
 
 function bind() {
   document.getElementById("systemTitle").oninput = function(){
