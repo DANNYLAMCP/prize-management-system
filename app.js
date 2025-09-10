@@ -26,6 +26,42 @@ function getPrizeSVG(name,i) {
   const color = colorList[i % colorList.length];
   return `data:image/svg+xml;utf8,<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><rect fill="${color}" width="100" height="100"/><text x="50" y="55" font-size="19" font-family="Arial" fill="white" text-anchor="middle">${name}</text></svg>`;
 }
+
+// ====== 本地儲存功能 ======
+function saveToLocal() {
+  try {
+    localStorage.setItem('prizeManagementData', JSON.stringify(DATA));
+  } catch(e) {
+    console.warn('無法保存到本地儲存:', e);
+  }
+}
+
+function loadFromLocal() {
+  try {
+    const saved = localStorage.getItem('prizeManagementData');
+    if (saved) {
+      const parsedData = JSON.parse(saved);
+      // 驗證數據格式
+      if (parsedData.title && Array.isArray(parsedData.prizes)) {
+        DATA.title = parsedData.title;
+        DATA.prizes = parsedData.prizes.map((x,i)=>({
+          id: x.id || i+1,
+          name: x.name || `獎品${i+1}`,
+          description: x.description || "",
+          points: Number(x.points) || 1,
+          image: x.image || getPrizeSVG(x.name || `獎品${i+1}`, i)
+        }));
+        DATA.nextId = parsedData.nextId || (DATA.prizes.reduce((max,p)=>Math.max(max,p.id),0)+1);
+        return true;
+      }
+    }
+  } catch(e) {
+    console.warn('無法從本地儲存載入:', e);
+  }
+  return false;
+}
+
+// 初始化數據（優先從本地載入）
 let DATA = {
   title: "示範學校 - 獎品兌換清單",
   prizes: defaultPrizes.map((x,i)=>({
@@ -37,6 +73,13 @@ let DATA = {
   })),
   nextId: 17
 };
+
+// 嘗試從本地儲存載入
+if (!loadFromLocal()) {
+  // 如果沒有本地數據，使用預設數據並保存
+  saveToLocal();
+}
+
 function render() {
   const app = document.getElementById("app");
   app.innerHTML = `
@@ -92,6 +135,7 @@ function render() {
   `;
   bind();
 }
+
 function getPrizesRows() {
   if (DATA.prizes.length === 0) {
     return `<tr><td colspan="5" class="no-data">請新增獎品…</td></tr>`;
@@ -99,17 +143,17 @@ function getPrizesRows() {
   return DATA.prizes
     .sort((a,b)=>a.points-b.points)
     .map(prize => {
-      // 確保圖片正確顯示，防止HTML代碼洩露
-      let imgElement = '';
-      if (typeof prize.image === 'string' && prize.image.trim().startsWith('data:image/')) {
-        imgElement = `<img src="${prize.image}" alt="${prize.name||''}" style="width:50px;height:50px;border-radius:4px;object-fit:cover;">`;
+      // 完全防呆的圖片渲染 - 絕對不會顯示HTML代碼
+      let imgHtml = '';
+      if (prize.image && typeof prize.image === 'string' && prize.image.startsWith('data:image/')) {
+        imgHtml = `<img src="${prize.image}" alt="" style="width:50px;height:50px;border-radius:4px;object-fit:cover;background:#f6f6f6;">`;
       } else {
-        imgElement = `<div style="width:50px;height:50px;border-radius:4px;background:#f6f6f6;"></div>`;
+        imgHtml = `<div style="width:50px;height:50px;border-radius:4px;background:#f6f6f6;display:flex;align-items:center;justify-content:center;color:#999;font-size:12px;">無圖</div>`;
       }
       
       return `
         <tr>
-          <td>${imgElement}</td>
+          <td>${imgHtml}</td>
           <td class="prize-name">${prize.name||''}</td>
           <td class="prize-description">${prize.description||""}</td>
           <td class="prize-points">${prize.points||''}</td>
@@ -123,15 +167,18 @@ function getPrizesRows() {
       `;
     }).join("");
 }
+
 function bind() {
   document.getElementById("systemTitle").oninput = function(){
     DATA.title = this.value;
     document.title = this.value;
+    saveToLocal(); // 自動保存
   };
   document.getElementById("addPrizeBtn").onclick = ()=>showEditModal();
   document.getElementById("clearAllBtn").onclick = ()=>{
-    if(confirm("確定清空所有獎品？")) {
+    if(confirm("確定清空所有獎品？此操作無法復原！")) {
       DATA.prizes = [];
+      saveToLocal(); // 自動保存
       render();
     }
   };
@@ -143,16 +190,20 @@ function bind() {
   };
   document.getElementById("printBtn").onclick = showPrintModal;
 }
+
 window.editPrize = function(id) {
   const prize = DATA.prizes.find(p=>p.id===id);
   showEditModal(prize);
 };
+
 window.deletePrize = function(id) {
   if(confirm("確定要刪除？")) {
     DATA.prizes = DATA.prizes.filter(p=>p.id!==id);
+    saveToLocal(); // 自動保存
     render();
   }
 };
+
 // ====== 完整版編輯Modal ======
 function showEditModal(prize=null) {
   const isEdit = !!prize;
@@ -192,7 +243,7 @@ function showEditModal(prize=null) {
               </div>
               <div id="cropSection" style="display:none;background:white;border-radius:8px;padding:15px;margin-top:15px;border:1px solid #dee2e6;">
                 <canvas id="cropCanvas" style="border:2px solid #1976d2;border-radius:4px;cursor:move;max-width:100%;"></canvas>
-                <div style="margin-top:10px;display:flex;gap:10px;align-items:center;">
+                <div style="margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
                   <label>裁剪比例：</label>
                   <select id="cropRatio" style="padding:6px;border-radius:4px;border:1px solid #dee2e6;">
                     <option value="1">正方形 1:1</option>
@@ -233,6 +284,8 @@ function showEditModal(prize=null) {
     } else {
       DATA.prizes.push({id:DATA.nextId++,name:n,description:d,points:p,image:img});
     }
+    
+    saveToLocal(); // 自動保存
     closeModal();
     render();
   };
@@ -332,13 +385,16 @@ function showEditModal(prize=null) {
     };
   }
 }
+
 // ====== 列印Modal ======
 function showPrintModal() {
-  alert('列印功能開發中，可先使用瀏覽器列印功能');
+  alert('列印功能開發中，目前可使用瀏覽器的列印功能 (Ctrl+P)');
 }
+
 window.closeModal = function(){
   document.getElementById('modal').classList.add('hidden');
 };
+
 function exportData(){
   const json = JSON.stringify({
     title: DATA.title,
@@ -351,6 +407,7 @@ function exportData(){
   a.download = `prizes_${new Date().toISOString().slice(0,10)}.json`;
   a.click();
 }
+
 function importData(file){
   const reader = new FileReader();
   reader.onload = e=>{
@@ -366,6 +423,7 @@ function importData(file){
         image: x.image||getPrizeSVG(x.name||`獎品${i+1}`,i)
       }));
       DATA.nextId=DATA.prizes.reduce((max,p)=>Math.max(max,p.id),0)+1;
+      saveToLocal(); // 自動保存
       alert("匯入成功！");
       render();
     }catch(err){
@@ -374,5 +432,6 @@ function importData(file){
   };
   reader.readAsText(file);
 }
+
 document.addEventListener("DOMContentLoaded", render);
 // ===================== END =====================
