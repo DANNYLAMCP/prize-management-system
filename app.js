@@ -103,23 +103,11 @@ function getPrizesRows() {
   }
   return DATA.prizes
     .sort((a,b)=>a.points-b.points)
-    .map(prize => `
-      <tr>
-        <td>
-          <img src="${prize.image}" alt="${prize.name}" style="width:50px;height:50px;border-radius:4px;object-fit:cover;">
-        </td>
-        <td class="prize-name">${prize.name}</td>
-        <td class="prize-description">${prize.description||""}</td>
-        <td class="prize-points">${prize.points}</td>
-        <td>
-          <div class="prize-actions">
-            <button class="btn btn--sm btn--secondary" onclick="editPrize(${prize.id})">編輯</button>
-            <button class="btn btn--sm btn--danger" onclick="deletePrize(${prize.id})">刪除</button>
-          </div>
-        </td>
-      </tr>
-    `).join("");
-}
+    .map(prize => {
+      // 僅當 image 有合理base64或svg才顯示，否則顯示空白圖
+      const imgSrc = (prize.image && prize.image.startsWith('data:image/')) ? prize.image : '';
+      // 或用 '/empty.png' 替代，這樣在沒圖片時
+
 
 
 function bind() {
